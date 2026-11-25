@@ -1,0 +1,57 @@
+;
+; OddlyDrv.inf - WFP connect-redirect callout driver (ABI v2)
+;
+; Optional: the engine registers the service itself (oddlyproxifier driver install).
+; Use this file for a manual install: right-click, Install.
+;
+
+[Version]
+    Signature   = "$WINDOWS NT$"
+    Class       = WFPCALLOUTS
+    ClassGuid   = {57465043-616C-6C6F-7574-5F636C617373}
+    Provider    = %ProviderString%
+    CatalogFile = OddlyDrv.cat
+    DriverVer   = 11/24/2026,2.0.0.0
+
+[SourceDisksNames]
+   1 = %OddlyDrvDisk%,,,""
+
+[SourceDisksFiles]
+   OddlyDrv.sys = 1,,
+
+[DestinationDirs]
+    DefaultDestDir        = 12
+    OddlyDrv.DriverFiles  = 12
+
+[DefaultInstall.ntamd64]
+    OptionDesc = %OddlyDrvServiceDesc%
+    CopyFiles  = OddlyDrv.DriverFiles
+
+[DefaultInstall.ntamd64.Services]
+    AddService = %OddlyDrvServiceName%,0x00000800,OddlyDrv.Service
+
+[DefaultUninstall.ntamd64]
+    LegacyUninstall=1
+
+[DefaultUninstall.ntamd64.Services]
+    LegacyUninstall=1
+    DelService = %OddlyDrvServiceName%,0x200
+
+[OddlyDrv.DriverFiles]
+    OddlyDrv.sys,,,0x00000004
+
+[OddlyDrv.Service]
+    DisplayName   = %OddlyDrvServiceName%
+    Description   = %OddlyDrvServiceDesc%
+    ServiceType   = 1
+    StartType     = 3
+    ErrorControl  = 1
+    ServiceBinary = %12%\OddlyDrv.sys
+    LoadOrderGroup = Extended Base
+    Dependencies   = BFE
+
+[Strings]
+    ProviderString          = "OddlyProxifier"
+    OddlyDrvDisk            = "OddlyDrv Installation Disk"
+    OddlyDrvServiceDesc     = "OddlyProxifier WFP Callout Driver"
+    OddlyDrvServiceName     = "OddlyDrv"

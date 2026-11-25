@@ -1,0 +1,690 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>OddlyProxifier</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="app.css">
+<script src="app.js" defer></script>
+</head>
+<body>
+
+<header class="top">
+  <div class="top__row">
+    <a class="brand" href="#/connections">
+      <svg class="brand__mark" viewBox="0 0 32 32" aria-hidden="true"><path d="M3 9h9l8 14h9" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="9" r="3.4"/><circle cx="20" cy="23" r="3.4"/></svg>
+      <span>OddlyProxifier</span>
+    </a>
+
+    <ul class="lamps" id="lamps" data-i18n-label="lamps.label" aria-label="Engine state">
+      <li><a class="lamp" id="lamp-intercept" href="#/settings" data-state="off">
+        <span class="lamp__glyph" aria-hidden="true"></span>
+        <span class="lamp__name" data-i18n="lamp.intercept">Interception</span>
+        <span class="lamp__state"></span>
+      </a></li>
+      <li><a class="lamp" id="lamp-inbound" href="#/settings" data-state="off">
+        <span class="lamp__glyph" aria-hidden="true"></span>
+        <span class="lamp__name" data-i18n="lamp.inbound">Local proxy</span>
+        <span class="lamp__state"></span>
+      </a></li>
+      <li><a class="lamp" id="lamp-fake_dns" href="#/settings" data-state="off">
+        <span class="lamp__glyph" aria-hidden="true"></span>
+        <span class="lamp__name" data-i18n="lamp.fake">Fake DNS</span>
+        <span class="lamp__state"></span>
+      </a></li>
+    </ul>
+
+    <button type="button" class="btn quick" id="quick-intercept" hidden></button>
+
+    <dl class="totals">
+      <div><dt data-i18n="tot.sent">Sent</dt><dd id="tot-up">0 B</dd></div>
+      <div><dt data-i18n="tot.recv">Received</dt><dd id="tot-down">0 B</dd></div>
+    </dl>
+
+    <select id="lang" class="lang" aria-label="Language / 语言">
+      <option value="en">English</option>
+      <option value="zh">中文</option>
+    </select>
+  </div>
+
+  <nav class="nav" data-i18n-label="nav.label" aria-label="Sections">
+    <a href="#/connections" data-view="connections"><span data-i18n="nav.connections">Connections</span> <span class="count" id="nav-active">0</span></a>
+    <a href="#/traffic" data-view="traffic" data-i18n="nav.traffic">Traffic</a>
+    <a href="#/rules" data-view="rules" data-i18n="nav.rules">Rules</a>
+    <a href="#/proxies" data-view="proxies" data-i18n="nav.proxies">Proxies</a>
+    <a href="#/log" data-view="log" data-i18n="nav.log">Log</a>
+    <a href="#/settings" data-view="settings" data-i18n="nav.settings">Settings</a>
+  </nav>
+</header>
+
+<main id="main">
+  <div class="notice" id="notice" role="status" hidden></div>
+
+  <!-- ============================================================ connections -->
+  <section class="view" id="view-connections" aria-labelledby="h-connections">
+    <div class="view__head">
+      <h1 id="h-connections" data-i18n="conn.title">Connections</h1>
+      <div class="view__tools">
+        <label class="search">
+          <span class="sr" data-i18n="conn.filter">Filter connections</span>
+          <input type="search" id="conn-filter" autocomplete="off" spellcheck="false"
+                 placeholder="Filter by application, host or rule" data-i18n-placeholder="conn.filter.ph">
+        </label>
+        <button type="button" class="btn" id="conn-close-all" data-i18n="conn.closeAll">Close all</button>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <div role="tablist" id="conn-tabs" aria-labelledby="h-connections">
+        <button type="button" role="tab" id="tab-active" aria-selected="true">
+          <span data-i18n="conn.active">Open now</span> <span class="count" id="count-active">0</span>
+        </button>
+        <button type="button" role="tab" id="tab-recent" aria-selected="false" tabindex="-1">
+          <span data-i18n="conn.recent">Finished</span> <span class="count" id="count-recent">0</span>
+        </button>
+      </div>
+
+      <div role="tabpanel" id="panel-active" aria-labelledby="tab-active" tabindex="0">
+        <div class="tablewrap">
+          <table class="grid" id="tbl-active">
+            <thead><tr>
+              <th scope="col" data-i18n="col.app">Application</th>
+              <th scope="col" data-i18n="col.dest">Destination</th>
+              <th scope="col" data-i18n="col.route">Route</th>
+              <th scope="col" class="num opt" data-i18n="col.sent">Sent</th>
+              <th scope="col" class="num opt" data-i18n="col.recv">Received</th>
+              <th scope="col" class="num" data-i18n="col.age">Open for</th>
+              <th scope="col"><span class="sr" data-i18n="col.actions">Actions</span></th>
+            </tr></thead>
+            <tbody></tbody>
+          </table>
+          <p class="empty" id="empty-active"></p>
+        </div>
+      </div>
+
+      <div role="tabpanel" id="panel-recent" aria-labelledby="tab-recent" hidden>
+        <div class="tablewrap">
+          <table class="grid" id="tbl-recent">
+            <thead><tr>
+              <th scope="col" data-i18n="col.app">Application</th>
+              <th scope="col" data-i18n="col.dest">Destination</th>
+              <th scope="col" data-i18n="col.route">Route</th>
+              <th scope="col" class="num opt" data-i18n="col.sent">Sent</th>
+              <th scope="col" class="num opt" data-i18n="col.recv">Received</th>
+              <th scope="col" class="num" data-i18n="col.ended">Ended</th>
+              <th scope="col" data-i18n="col.result">Result</th>
+            </tr></thead>
+            <tbody></tbody>
+          </table>
+          <p class="empty" id="empty-recent"></p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================================================================ traffic -->
+  <section class="view" id="view-traffic" aria-labelledby="h-traffic" hidden>
+    <div class="view__head">
+      <h1 id="h-traffic" data-i18n="tr.title">Traffic</h1>
+      <div class="view__tools">
+        <button type="button" class="btn" id="tr-reset" data-i18n="tr.reset">Reset statistics</button>
+      </div>
+    </div>
+
+    <figure class="chart">
+      <figcaption class="chart__head">
+        <span class="chart__title" data-i18n="tr.chart">Transfer rate over the last 5 minutes</span>
+        <ul class="legend">
+          <li><span class="legend__key legend__key--down" aria-hidden="true"></span><span data-i18n="tr.down">Receiving</span> <b id="tr-now-down">0 B/s</b></li>
+          <li><span class="legend__key legend__key--up" aria-hidden="true"></span><span data-i18n="tr.up">Sending</span> <b id="tr-now-up">0 B/s</b></li>
+          <li><span data-i18n="tr.peak">Peak</span> <b id="tr-peak">0 B/s</b></li>
+        </ul>
+      </figcaption>
+      <div class="chart__plot" id="tr-plot" tabindex="0" role="group" data-i18n-label="tr.plot" aria-label="Rate chart. Use the arrow keys to read values.">
+        <span class="chart__tick chart__tick--top" id="tr-tick-top"></span>
+        <span class="chart__tick chart__tick--mid" id="tr-tick-mid"></span>
+        <svg viewBox="0 0 600 160" preserveAspectRatio="none" role="img" id="tr-svg" aria-label="">
+          <line class="chart__grid" x1="0" x2="600" y1="10" y2="10"/>
+          <line class="chart__grid" x1="0" x2="600" y1="84.5" y2="84.5"/>
+          <path class="chart__area" id="tr-area" d=""/>
+          <path class="chart__line chart__line--down" id="tr-line-down" d=""/>
+          <path class="chart__line chart__line--up" id="tr-line-up" d=""/>
+          <line class="chart__cross" id="tr-cross" x1="0" x2="0" y1="0" y2="160" data-off=""/>
+        </svg>
+        <div class="chart__tip" id="tr-tip" role="status" hidden></div>
+      </div>
+      <div class="chart__axis" aria-hidden="true"><span data-i18n="tr.ago">5 minutes ago</span><span data-i18n="tr.now">now</span></div>
+    </figure>
+
+    <div class="view__head view__head--sub">
+      <h2 id="h-usage" data-i18n="tr.usage">Where the traffic went</h2>
+    </div>
+    <div class="tabs">
+      <div role="tablist" id="tr-tabs" aria-labelledby="h-usage">
+        <button type="button" role="tab" id="trtab-apps" data-usage="apps" aria-controls="panel-usage" aria-selected="true" data-i18n="tr.apps">Applications</button>
+        <button type="button" role="tab" id="trtab-routes" data-usage="routes" aria-controls="panel-usage" aria-selected="false" tabindex="-1" data-i18n="tr.routes">Routes</button>
+        <button type="button" role="tab" id="trtab-rules" data-usage="rules" aria-controls="panel-usage" aria-selected="false" tabindex="-1" data-i18n="tr.rules">Rules</button>
+      </div>
+      <div role="tabpanel" id="panel-usage" aria-labelledby="trtab-apps" tabindex="0">
+        <div class="tablewrap">
+          <table class="grid" id="tbl-usage">
+            <thead><tr>
+              <th scope="col" data-i18n="f.name">Name</th>
+              <th scope="col" class="num" data-i18n="tr.conns">Connections</th>
+              <th scope="col" class="num opt" data-i18n="conn.active">Open now</th>
+              <th scope="col" class="num" data-i18n="col.sent">Sent</th>
+              <th scope="col" class="num" data-i18n="col.recv">Received</th>
+            </tr></thead>
+            <tbody></tbody>
+          </table>
+          <p class="empty" id="empty-usage"></p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================================================================== rules -->
+  <section class="view" id="view-rules" aria-labelledby="h-rules" hidden>
+    <div class="view__head">
+      <h1 id="h-rules" data-i18n="rules.title">Rules</h1>
+      <div class="view__tools">
+        <button type="button" class="btn btn--primary" id="rule-add" data-i18n="rules.add">Add rule</button>
+      </div>
+    </div>
+    <p class="lede" data-i18n="rules.lede">Rules are checked from top to bottom. The first one that matches decides where the connection goes.</p>
+
+    <ol class="rules" id="rule-list"></ol>
+    <div class="rule rule--default" id="rule-default"></div>
+
+    <form class="tester" id="tester" novalidate>
+      <h2 data-i18n="tester.title">Try a connection</h2>
+      <p class="hint" id="tester-hint" data-i18n="tester.hint">See which rule a connection would hit, without making it.</p>
+      <div class="tester__row">
+        <label class="field">
+          <span class="field__label" data-i18n="tester.app">Application</span>
+          <input type="text" id="tester-app" placeholder="chrome.exe" autocomplete="off" spellcheck="false">
+        </label>
+        <label class="field field--grow">
+          <span class="field__label" data-i18n="tester.host">Host or IP address</span>
+          <input type="text" id="tester-host" placeholder="www.example.com" autocomplete="off" spellcheck="false">
+        </label>
+        <label class="field field--port">
+          <span class="field__label" data-i18n="f.port">Port</span>
+          <input type="number" id="tester-port" min="1" max="65535" value="443" inputmode="numeric">
+        </label>
+        <button type="submit" class="btn" data-i18n="tester.run">Find matching rule</button>
+      </div>
+      <div class="tester__out" id="tester-out" role="status"></div>
+    </form>
+  </section>
+
+  <!-- ================================================================ proxies -->
+  <section class="view" id="view-proxies" aria-labelledby="h-proxies" hidden>
+    <div class="view__head">
+      <h1 id="h-proxies" data-i18n="px.title">Proxy servers</h1>
+      <div class="view__tools">
+        <label class="inline">
+          <span data-i18n="px.target">Check against</span>
+          <input type="text" id="check-target" value="www.gstatic.com:80" autocomplete="off" spellcheck="false"
+                 pattern="^(\[[0-9a-fA-F:.]+\]|[^\s:\[\]]+):\d{1,5}$">
+        </label>
+        <button type="button" class="btn" id="px-check-all" data-i18n="px.checkAll">Check all</button>
+        <button type="button" class="btn btn--primary" id="px-add" data-i18n="px.add">Add proxy</button>
+      </div>
+    </div>
+
+    <div class="tablewrap">
+      <table class="grid" id="tbl-proxies">
+        <thead><tr>
+          <th scope="col" data-i18n="f.name">Name</th>
+          <th scope="col" data-i18n="f.type">Type</th>
+          <th scope="col" data-i18n="px.addr">Address</th>
+          <th scope="col" class="opt" data-i18n="px.auth">Sign-in</th>
+          <th scope="col" data-i18n="px.check">Last check</th>
+          <th scope="col"><span class="sr" data-i18n="col.actions">Actions</span></th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+      <p class="empty" id="empty-proxies"></p>
+    </div>
+
+    <div class="view__head view__head--sub">
+      <h2 id="h-chains" data-i18n="ch.title">Chains and groups</h2>
+      <div class="view__tools">
+        <button type="button" class="btn" id="ch-add" data-i18n="ch.add">Add chain or group</button>
+      </div>
+    </div>
+    <p class="lede" data-i18n="ch.lede">A chain passes a connection through several proxies in a row. A failover group uses the first proxy that answers. A load-balancing group takes turns.</p>
+    <ul class="chains" id="chain-list"></ul>
+  </section>
+
+  <!-- ==================================================================== log -->
+  <section class="view" id="view-log" aria-labelledby="h-log" hidden>
+    <div class="view__head">
+      <h1 id="h-log" data-i18n="log.title">Log</h1>
+      <div class="view__tools">
+        <label class="inline">
+          <span data-i18n="log.show">Show</span>
+          <select id="log-level">
+            <option value="all" data-i18n="log.all">Everything</option>
+            <option value="warn" data-i18n="log.warn">Warnings and errors</option>
+            <option value="error" data-i18n="log.error">Errors only</option>
+          </select>
+        </label>
+        <button type="button" class="btn" id="log-clear" data-i18n="log.clear">Clear view</button>
+      </div>
+    </div>
+    <ol class="log" id="log-list" tabindex="0" data-i18n-label="log.title" aria-label="Log"></ol>
+    <p class="empty" id="empty-log"></p>
+  </section>
+
+  <!-- =============================================================== settings -->
+  <section class="view" id="view-settings" aria-labelledby="h-settings" hidden>
+    <div class="view__head">
+      <h1 id="h-settings" data-i18n="set.title">Settings</h1>
+    </div>
+
+    <form id="settings-form" class="settings">
+      <fieldset>
+        <legend data-i18n="set.intercept">Interception</legend>
+        <label class="check">
+          <input type="checkbox" id="s-intercept">
+          <span><span data-i18n="set.intercept.on">Capture connections of applications that have no proxy setting</span>
+          <small data-i18n="set.intercept.on.h">Needs administrator or root rights. Only traffic that a rule sends to a proxy or blocks is touched.</small></span>
+        </label>
+        <label class="check">
+          <input type="checkbox" id="s-ipv6">
+          <span data-i18n="set.ipv6">Capture IPv6 connections too</span>
+        </label>
+        <label class="check">
+          <input type="checkbox" id="s-quic">
+          <span><span data-i18n="set.quic">Block QUIC (UDP port 443)</span>
+          <small data-i18n="set.quic.h">Browsers then fall back to TCP, which can be proxied.</small></span>
+        </label>
+        <label class="check">
+          <input type="checkbox" id="s-direct">
+          <span><span data-i18n="set.direct">Show direct connections as well</span>
+          <small data-i18n="set.direct.h">Every connection passes through the engine and appears in the list. Slightly slower.</small></span>
+        </label>
+        <div class="fields">
+          <label class="field field--port">
+            <span class="field__label" data-i18n="set.tport">Capture port</span>
+            <span class="hint" id="s-tport-h" data-i18n="set.tport.h">Local port captured connections arrive on.</span>
+            <input type="number" id="s-tport" min="1" max="65535" required inputmode="numeric" aria-describedby="s-tport-h">
+          </label>
+          <label class="field field--port">
+            <span class="field__label" data-i18n="set.target">Only this destination port</span>
+            <span class="hint" id="s-target-h" data-i18n="set.target.h">For troubleshooting. 0 captures all ports.</span>
+            <input type="number" id="s-target" min="0" max="65535" required inputmode="numeric" aria-describedby="s-target-h">
+          </label>
+        </div>
+      </fieldset>
+
+      <fieldset id="driver-box" hidden>
+        <legend data-i18n="drv.title">Windows driver</legend>
+        <p class="hint" data-i18n="drv.hint">Capturing on Windows is done by the OddlyDrv kernel driver. It must be signed, or Windows must be in test-signing mode.</p>
+        <dl class="facts" id="driver-facts"></dl>
+        <div class="btnrow">
+          <button type="button" class="btn" data-drv="install" data-i18n="drv.install">Install and start</button>
+          <button type="button" class="btn" data-drv="start" data-i18n="drv.start">Start</button>
+          <button type="button" class="btn" data-drv="stop" data-i18n="drv.stop">Stop</button>
+          <button type="button" class="btn btn--danger" data-drv="uninstall" data-i18n="drv.uninstall">Uninstall</button>
+        </div>
+        <p class="form-error" id="driver-error" role="alert" hidden></p>
+      </fieldset>
+
+      <fieldset>
+        <legend data-i18n="set.inbound">Local proxy listener</legend>
+        <label class="field">
+          <span class="field__label" data-i18n="set.inbound.addr">Listen address</span>
+          <span class="hint" id="s-inbound-h" data-i18n="set.inbound.h">Applications that do have a proxy setting can point at this address (SOCKS5, SOCKS4 or HTTP). They follow the same rules. Leave empty to turn it off.</span>
+          <input type="text" id="s-inbound" placeholder="127.0.0.1:1080" autocomplete="off" spellcheck="false"
+                 pattern="^(\[[0-9a-fA-F:.]+\]|[^\s:\[\]]+):\d{1,5}$" aria-describedby="s-inbound-h">
+        </label>
+        <label class="check">
+          <input type="checkbox" id="s-udp">
+          <span><span data-i18n="set.udp">Relay UDP for SOCKS5 clients</span>
+          <small data-i18n="set.udp.h">UDP goes out directly or through a single SOCKS5 proxy. Other proxy types and chains of several proxies cannot carry it; such traffic is dropped, never sent around the proxy.</small></span>
+        </label>
+      </fieldset>
+
+      <fieldset>
+        <legend data-i18n="set.dns">Name resolution</legend>
+        <div class="radios" role="radiogroup" aria-labelledby="s-dns-label">
+          <span class="field__label" id="s-dns-label" data-i18n="set.dns.mode">Who looks up host names for proxied connections</span>
+          <label class="check">
+            <input type="radio" name="dns-mode" value="auto">
+            <span><span data-i18n="set.dns.remote">The proxy server</span>
+            <small data-i18n="set.dns.remote.h">The host name is sent to the proxy whenever it is known. Recommended.</small></span>
+          </label>
+          <label class="check">
+            <input type="radio" name="dns-mode" value="local">
+            <span><span data-i18n="set.dns.local">This computer</span>
+            <small data-i18n="set.dns.local.h">The proxy only ever sees IP addresses.</small></span>
+          </label>
+        </div>
+        <label class="field">
+          <span class="field__label" data-i18n="set.localnames">Names always looked up on this computer</span>
+          <span class="hint" id="s-local-names-h" data-i18n="set.localnames.h">One per line, such as *.corp.example or printer. For names the proxy cannot know.</span>
+          <textarea id="s-local-names" rows="3" spellcheck="false" aria-describedby="s-local-names-h"></textarea>
+        </label>
+        <label class="check">
+          <input type="checkbox" id="s-sniff">
+          <span><span data-i18n="set.sniff">Read the host name from the connection itself</span>
+          <small data-i18n="set.sniff.h">Uses the TLS server name or the HTTP Host header, so that host rules work for captured connections.</small></span>
+        </label>
+        <label class="check">
+          <input type="checkbox" id="s-fake">
+          <span><span data-i18n="set.fake">Run a fake DNS server</span>
+          <small data-i18n="set.fake.h">Answers lookups with placeholder addresses and remembers the names, so the proxy can do the real lookup. Point the system DNS at it where capture does not do so automatically.</small></span>
+        </label>
+        <div class="fields" id="fake-fields">
+          <label class="field">
+            <span class="field__label" data-i18n="set.fake.listen">Fake DNS address</span>
+            <input type="text" id="s-fake-listen" required autocomplete="off" spellcheck="false"
+                   pattern="^(\[[0-9a-fA-F:.]+\]|[^\s:\[\]]+):\d{1,5}$">
+          </label>
+          <label class="field">
+            <span class="field__label" data-i18n="set.fake.range">Placeholder range</span>
+            <input type="text" id="s-fake-range" required autocomplete="off" spellcheck="false"
+                   pattern="^\d{1,3}(\.\d{1,3}){3}/\d{1,2}$">
+          </label>
+          <label class="field">
+            <span class="field__label" data-i18n="set.fake.up">Real DNS server</span>
+            <input type="text" id="s-fake-up" required autocomplete="off" spellcheck="false"
+                   pattern="^(\[[0-9a-fA-F:.]+\]|[^\s:\[\]]+):\d{1,5}$">
+          </label>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend data-i18n="set.time">Timeouts</legend>
+        <div class="fields">
+          <label class="field field--port">
+            <span class="field__label" data-i18n="set.time.connect">Connecting, seconds</span>
+            <input type="number" id="s-connect" min="1" max="600" required inputmode="numeric">
+          </label>
+          <label class="field field--port">
+            <span class="field__label" data-i18n="set.time.idle">Idle, seconds</span>
+            <span class="hint" id="s-idle-h" data-i18n="set.time.idle.h">0 never closes idle connections.</span>
+            <input type="number" id="s-idle" min="0" max="86400" required inputmode="numeric" aria-describedby="s-idle-h">
+          </label>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend data-i18n="set.log">Log file</legend>
+        <label class="field">
+          <span class="field__label" data-i18n="set.log.file">File</span>
+          <span class="hint" id="s-logfile-h" data-i18n="set.log.file.h">The log is also written to this file, which is rotated when it grows large. Leave empty to keep the log in memory only.</span>
+          <input type="text" id="s-logfile" autocomplete="off" spellcheck="false" aria-describedby="s-logfile-h">
+        </label>
+        <div class="fields">
+          <label class="field">
+            <span class="field__label" data-i18n="set.log.level">Detail</span>
+            <select id="s-loglevel">
+              <option value="debug" data-i18n="set.log.debug">Everything, for troubleshooting</option>
+              <option value="info" data-i18n="set.log.info">Normal</option>
+              <option value="warn" data-i18n="log.warn">Warnings and errors</option>
+              <option value="error" data-i18n="log.error">Errors only</option>
+            </select>
+          </label>
+        </div>
+      </fieldset>
+
+      <p class="form-error" id="settings-error" role="alert" hidden></p>
+      <div class="btnrow btnrow--sticky">
+        <button type="submit" class="btn btn--primary" data-i18n="set.save">Save settings</button>
+        <button type="button" class="btn" id="settings-reset" data-i18n="set.revert">Discard changes</button>
+      </div>
+    </form>
+
+    <div class="view__head view__head--sub">
+      <h2 id="h-profiles" data-i18n="prof.title">Profiles</h2>
+      <div class="view__tools">
+        <button type="button" class="btn" id="prof-save" data-i18n="prof.save">Save as…</button>
+        <button type="button" class="btn" id="prof-import" data-i18n="prof.import">Import…</button>
+        <button type="button" class="btn" id="prof-export" data-i18n="prof.export">Export…</button>
+        <input type="file" id="prof-file" accept=".json,.ppx,application/json" hidden>
+      </div>
+    </div>
+    <p class="lede" data-i18n="prof.lede">A profile holds proxies, chains, rules and name resolution. Switching profiles keeps what belongs to this computer: ports, the access token and the log file. Profiles exported from Proxifier (.ppx) can be imported.</p>
+    <div id="prof-store">
+      <div class="tablewrap">
+        <table class="grid" id="tbl-profiles" aria-labelledby="h-profiles">
+          <thead><tr>
+            <th scope="col" data-i18n="f.name">Name</th>
+            <th scope="col" class="opt" data-i18n="prof.contents">Contents</th>
+            <th scope="col" class="opt" data-i18n="prof.saved">Saved</th>
+            <th scope="col"><span class="sr" data-i18n="col.actions">Actions</span></th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+        <p class="empty" id="empty-profiles"></p>
+      </div>
+      <p class="hint" id="prof-dir"></p>
+    </div>
+    <p class="hint" id="prof-none" data-i18n="prof.nostore" hidden>This engine was started without a profile file, so profiles cannot be saved by name.</p>
+
+    <div class="view__head view__head--sub">
+      <h2 data-i18n="about.title">About this engine</h2>
+    </div>
+    <dl class="facts" id="about-facts"></dl>
+  </section>
+</main>
+
+<!-- ==================================================================== dialogs -->
+
+<dialog id="dlg-proxy" aria-labelledby="dlg-proxy-title">
+  <form method="dialog">
+    <h2 id="dlg-proxy-title"></h2>
+    <label class="field">
+      <span class="field__label" data-i18n="f.name">Name</span>
+      <input type="text" name="name" maxlength="80" autocomplete="off" autofocus>
+    </label>
+    <div class="fields">
+      <label class="field">
+        <span class="field__label" data-i18n="f.type">Type</span>
+        <select name="type">
+          <option value="socks5">SOCKS5</option>
+          <option value="socks4a">SOCKS4a</option>
+          <option value="socks4">SOCKS4</option>
+          <option value="http">HTTP (CONNECT)</option>
+          <option value="https">HTTPS (CONNECT over TLS)</option>
+        </select>
+      </label>
+    </div>
+    <div class="fields">
+      <label class="field field--grow">
+        <span class="field__label" data-i18n="px.host">Server address</span>
+        <input type="text" name="host" required maxlength="253" autocomplete="off" spellcheck="false"
+               pattern="[^\s\/:\[\]]+|\[?[0-9a-fA-F:.]+\]?">
+      </label>
+      <label class="field field--port">
+        <span class="field__label" data-i18n="f.port">Port</span>
+        <input type="number" name="port" required min="1" max="65535" inputmode="numeric">
+      </label>
+    </div>
+    <div class="fields">
+      <label class="field field--grow">
+        <span class="field__label" data-i18n="px.user">User name</span>
+        <input type="text" name="username" maxlength="255" autocomplete="off" spellcheck="false">
+      </label>
+      <label class="field field--grow" data-only="socks5 http https">
+        <span class="field__label" data-i18n="px.pass">Password</span>
+        <input type="password" name="password" maxlength="255" autocomplete="new-password">
+      </label>
+    </div>
+    <div data-only="https">
+      <label class="field">
+        <span class="field__label" data-i18n="px.sni">Certificate name</span>
+        <span class="hint" id="px-sni-h" data-i18n="px.sni.h">Only if it differs from the server address.</span>
+        <input type="text" name="tls_server_name" maxlength="253" autocomplete="off" spellcheck="false" aria-describedby="px-sni-h">
+      </label>
+      <label class="check">
+        <input type="checkbox" name="tls_insecure">
+        <span><span data-i18n="px.insecure">Accept any certificate</span>
+        <small data-i18n="px.insecure.h">Lets anyone on the path read the traffic. For testing only.</small></span>
+      </label>
+    </div>
+    <p class="form-note" id="dlg-proxy-check" role="status"></p>
+    <p class="form-error" role="alert" hidden></p>
+    <div class="btnrow btnrow--dialog">
+      <button type="button" class="btn" id="dlg-proxy-test" data-i18n="px.test">Check</button>
+      <span class="spacer"></span>
+      <button type="button" class="btn" data-close data-i18n="b.cancel">Cancel</button>
+      <button type="submit" class="btn btn--primary" value="save" data-i18n="px.save">Save proxy</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="dlg-chain" aria-labelledby="dlg-chain-title">
+  <form method="dialog">
+    <h2 id="dlg-chain-title"></h2>
+    <label class="field">
+      <span class="field__label" data-i18n="f.name">Name</span>
+      <input type="text" name="name" required maxlength="80" autocomplete="off" autofocus>
+    </label>
+    <div class="radios" role="radiogroup" aria-labelledby="ch-type-label">
+      <span class="field__label" id="ch-type-label" data-i18n="ch.kind">How the proxies are used</span>
+      <label class="check">
+        <input type="radio" name="type" value="chain">
+        <span><span data-i18n="ch.t.chain">Chain</span>
+        <small data-i18n="ch.t.chain.h">Through every proxy, in this order.</small></span>
+      </label>
+      <label class="check">
+        <input type="radio" name="type" value="failover">
+        <span><span data-i18n="ch.t.failover">Failover</span>
+        <small data-i18n="ch.t.failover.h">The first proxy that answers; the next one if it does not.</small></span>
+      </label>
+      <label class="check">
+        <input type="radio" name="type" value="balance">
+        <span><span data-i18n="ch.t.balance">Load balancing</span>
+        <small data-i18n="ch.t.balance.h">Each new connection takes the next proxy in turn.</small></span>
+      </label>
+    </div>
+    <div class="members">
+      <span class="field__label" id="ch-members-label" data-i18n="ch.members">Proxies</span>
+      <ol class="memberlist" id="ch-members" aria-labelledby="ch-members-label"></ol>
+      <div class="members__add">
+        <label class="sr" for="ch-pick" data-i18n="ch.pick">Proxy to add</label>
+        <select id="ch-pick"></select>
+        <button type="button" class="btn" id="ch-pick-add" data-i18n="ch.pick.add">Add to list</button>
+      </div>
+    </div>
+    <p class="form-error" role="alert" hidden></p>
+    <div class="btnrow btnrow--dialog">
+      <span class="spacer"></span>
+      <button type="button" class="btn" data-close data-i18n="b.cancel">Cancel</button>
+      <button type="submit" class="btn btn--primary" value="save" data-i18n="ch.save">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="dlg-rule" aria-labelledby="dlg-rule-title">
+  <form method="dialog">
+    <h2 id="dlg-rule-title"></h2>
+    <div data-rule-only="rule">
+      <label class="field">
+        <span class="field__label" data-i18n="f.name">Name</span>
+        <input type="text" name="name" required maxlength="80" autocomplete="off" autofocus>
+      </label>
+      <label class="field">
+        <span class="field__label" data-i18n="rule.apps">Applications</span>
+        <span class="hint" id="rule-apps-h" data-i18n="rule.apps.h">One per line. A program name such as chrome.exe, or a path with wildcards such as *\Steam\*. Empty means any application.</span>
+        <textarea name="apps" rows="3" spellcheck="false" aria-describedby="rule-apps-h"></textarea>
+      </label>
+      <label class="field">
+        <span class="field__label" data-i18n="rule.hosts">Destination hosts</span>
+        <span class="hint" id="rule-hosts-h" data-i18n="rule.hosts.h">One per line. *.example.com, 10.0.0.0/8, 192.168.1.1-192.168.1.50. Empty means any host.</span>
+        <textarea name="hosts" rows="3" spellcheck="false" aria-describedby="rule-hosts-h"></textarea>
+      </label>
+      <label class="field">
+        <span class="field__label" data-i18n="rule.ports">Destination ports</span>
+        <span class="hint" id="rule-ports-h" data-i18n="rule.ports.h">For example 80, 443, 8000-9000. Empty means any port.</span>
+        <input type="text" name="ports" autocomplete="off" spellcheck="false" aria-describedby="rule-ports-h"
+               pattern="^\s*\d{1,5}(\s*-\s*\d{1,5})?(\s*[,;]\s*\d{1,5}(\s*-\s*\d{1,5})?)*\s*$">
+      </label>
+    </div>
+    <label class="field">
+      <span class="field__label" data-i18n="rule.action">Send the connection</span>
+      <select name="action" required></select>
+    </label>
+    <p class="form-error" role="alert" hidden></p>
+    <div class="btnrow btnrow--dialog">
+      <span class="spacer"></span>
+      <button type="button" class="btn" data-close data-i18n="b.cancel">Cancel</button>
+      <button type="submit" class="btn btn--primary" value="save" data-i18n="rule.save">Save rule</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="dlg-name" aria-labelledby="dlg-name-title">
+  <form method="dialog">
+    <h2 id="dlg-name-title"></h2>
+    <p id="dlg-name-text"></p>
+    <label class="field">
+      <span class="field__label" data-i18n="prof.name">Profile name</span>
+      <span class="hint" id="dlg-name-h"></span>
+      <input type="text" name="name" maxlength="64" autocomplete="off" spellcheck="false" autofocus aria-describedby="dlg-name-h">
+    </label>
+    <p class="form-error" role="alert" hidden></p>
+    <div class="btnrow btnrow--dialog">
+      <span class="spacer"></span>
+      <button type="button" class="btn" data-close data-i18n="b.cancel">Cancel</button>
+      <button type="submit" class="btn btn--primary" value="save" id="dlg-name-ok"></button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="dlg-export" aria-labelledby="dlg-export-title">
+  <form method="dialog">
+    <h2 id="dlg-export-title" data-i18n="prof.export.title">Export the profile</h2>
+    <p data-i18n="prof.export.text">The file holds proxies, chains, rules and name resolution, and can be imported on another computer.</p>
+    <label class="check">
+      <input type="checkbox" name="passwords">
+      <span><span data-i18n="prof.export.pw">Include proxy passwords</span>
+      <small data-i18n="prof.export.pw.h">They are stored in the file as plain text.</small></span>
+    </label>
+    <p class="form-error" role="alert" hidden></p>
+    <div class="btnrow btnrow--dialog">
+      <span class="spacer"></span>
+      <button type="button" class="btn" data-close data-i18n="b.cancel">Cancel</button>
+      <button type="submit" class="btn btn--primary" value="save" data-i18n="prof.export.ok">Export</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="dlg-confirm" aria-labelledby="dlg-confirm-title">
+  <form method="dialog">
+    <h2 id="dlg-confirm-title"></h2>
+    <p id="dlg-confirm-text"></p>
+    <div class="btnrow btnrow--dialog">
+      <span class="spacer"></span>
+      <button type="submit" class="btn" value="cancel" autofocus data-i18n="b.cancel">Cancel</button>
+      <button type="submit" class="btn btn--danger" value="ok" id="dlg-confirm-ok"></button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="dlg-token" aria-labelledby="dlg-token-title">
+  <form method="dialog">
+    <h2 id="dlg-token-title" data-i18n="tok.title">Access token needed</h2>
+    <p data-i18n="tok.text">Open the address the engine printed when it started, or paste the token from it here. The token is also stored as api_token in the profile file.</p>
+    <label class="field">
+      <span class="field__label" data-i18n="tok.label">Access token</span>
+      <input type="password" name="token" required autocomplete="off" autofocus>
+    </label>
+    <div class="btnrow btnrow--dialog">
+      <span class="spacer"></span>
+      <button type="submit" class="btn btn--primary" value="save" data-i18n="tok.save">Connect</button>
+    </div>
+  </form>
+</dialog>
+
+<div class="toasts" id="toasts" role="status" aria-live="polite"></div>
+
+</body>
+</html>
