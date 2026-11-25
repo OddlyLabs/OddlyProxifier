@@ -1,6 +1,6 @@
 @echo off
 rem Set WDKROOT to the Windows Driver Kit when it is not in the default place.
-if not defined WDKROOT set "WDKROOT=C:\Program Files (x86)\Windows Kits"
+if not defined WDKROOT set "WDKROOT=C:\Program Files (x86)\Windows Kits\10"
 set WDKINC=%WDKROOT%\Include\10.0.26100.0
 set WDKLIB=%WDKROOT%\Lib\10.0.26100.0\km\x64
 set SRCDIR=%~dp0
