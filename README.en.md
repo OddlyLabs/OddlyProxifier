@@ -227,7 +227,7 @@ The profile is one JSON file. The management interface reads and writes it; it c
 | `options.handle_direct` | Also pass connections that can only go directly through the engine, to see every connection in the interface |
 | `options.log_file` / `log_level` | Also write the log to this file, from this level up; beyond 5 MB the file is renamed to `<file>.1` and started again |
 | `options.target_port` | For debugging: intercept only this destination port; `0` means all |
-| `api_token` | Access token of the management API; generated and saved when absent |
+| `options.api_token` | Access token of the management API; generated and saved when absent |
 
 ### Several profiles, and moving from Proxifier
 
@@ -310,6 +310,7 @@ When the engine runs as a service, `oddlyproxifier tray` shows the icon on its o
 </details>
 
 Fake-IP DNS does not take over the system DNS on Windows: after enabling it, point the network adapter's DNS server at the `dns.fake.listen` address by hand.
+Once the engine stops, nothing answers at that address and name resolution fails, so set the DNS server back.
 
 ### Linux
 
@@ -353,11 +354,13 @@ Please report security problems privately through GitHub [Security Advisories](h
 
 | Tested | Not yet tested |
 |---|---|
-| Windows driver: per-program and all-program interception, concurrent connections, block rules, host rules, QUIC blocking, recovery after the engine is killed | IPv6 redirect in the Windows driver |
-| Windows service: install, start with the system, interception, stop, uninstall | Fake-IP DNS on Windows |
-| `tray` command: switching interception, closing the icon, start at sign-in | Double-click on the notification-area icon and the elevation prompt |
-| Linux transparent interception: proxy and direct, process identification, cleanup after a kill | systemd and launchd installs |
-| Management interface: every page in both languages and both colour schemes | The macOS backend; QUIC fallback in a real browser |
+| Windows driver: per-program and all-program interception, IPv6 redirect, concurrent connections, block rules, host rules, QUIC blocking, recovery after the engine is killed | Double-click on the notification-area icon and the elevation prompt |
+| Fake-IP DNS on Windows: with the adapter pointed at it by hand, by name through a proxy and directly | The launchd install |
+| Windows service: install, start with the system, interception, stop, uninstall | The macOS backend |
+| `tray` command: switching interception, closing the icon, start at sign-in | QUIC fallback in a real browser |
+| Linux transparent interception: proxy and direct, process identification, cleanup after a kill | |
+| systemd: install, enabled at boot, start, restart after a kill, stop, uninstall | |
+| Management interface: every page in both languages and both colour schemes | |
 
 ## FAQ
 
@@ -399,7 +402,7 @@ On Windows the driver lets traffic through as soon as the engine's handle closes
 <details>
 <summary><b>I lost the address or the token of the management interface.</b></summary>
 
-The engine prints the full address when it starts; the token is also in the `api_token` field of the profile file.
+The engine prints the full address when it starts; the token is also in the `options.api_token` field of the profile file.
 
 </details>
 

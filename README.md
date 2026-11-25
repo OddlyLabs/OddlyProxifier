@@ -224,7 +224,7 @@ oddlyproxifier version
 | `options.handle_direct` | 只可能直连的连接也经过引擎，便于在界面里观察全部连接 |
 | `options.log_file` / `log_level` | 日志同时写入这个文件及写入的最低级别；超过 5 MB 时改名为 `<文件>.1` 后重新开始 |
 | `options.target_port` | 调试用：只拦截这个目标端口，`0` 为全部 |
-| `api_token` | 管理接口的访问令牌；不写时自动生成并保存 |
+| `options.api_token` | 管理接口的访问令牌；不写时自动生成并保存 |
 
 ### 多份配置与从 Proxifier 迁移
 
@@ -307,6 +307,7 @@ oddlyproxifier service start
 </details>
 
 Fake-IP DNS 在 Windows 上不会自动接管系统 DNS：启用后需要把网卡的 DNS 服务器手动指向 `dns.fake.listen` 的地址。
+引擎停止后这个地址不再应答，域名解析会失败，记得把 DNS 改回原来的设置。
 
 ### Linux
 
@@ -350,11 +351,13 @@ Fake-IP DNS 在 Windows 上不会自动接管系统 DNS：启用后需要把网�
 
 | 已实测 | 尚未实测 |
 |---|---|
-| Windows 驱动：按程序 / 全部程序拦截、并发连接、阻止规则、域名规则、QUIC 阻断、引擎被杀后恢复 | Windows 驱动的 IPv6 重定向 |
-| Windows 服务：安装、随系统启动、接管、停止、卸载 | Fake-IP DNS 在 Windows 上的使用 |
-| `tray` 命令：开关拦截、关闭图标、登录自启动 | 通知区域图标的鼠标双击与提权提示 |
-| Linux 透明拦截：代理与直连、进程识别、强杀后的清理 | systemd 与 launchd 的安装 |
-| 管理界面：两种语言、两种配色下的全部页面 | macOS 后端；浏览器里真实的 QUIC 回退 |
+| Windows 驱动：按程序 / 全部程序拦截、IPv6 重定向、并发连接、阻止规则、域名规则、QUIC 阻断、引擎被杀后恢复 | 通知区域图标的鼠标双击与提权提示 |
+| Windows 上的 Fake-IP DNS：手动指向后，按域名经代理与直连 | launchd 的安装 |
+| Windows 服务：安装、随系统启动、接管、停止、卸载 | macOS 后端 |
+| `tray` 命令：开关拦截、关闭图标、登录自启动 | 浏览器里真实的 QUIC 回退 |
+| Linux 透明拦截：代理与直连、进程识别、强杀后的清理 | |
+| systemd：安装、开机启用、启动、被杀后自动重启、停止、卸载 | |
+| 管理界面：两种语言、两种配色下的全部页面 | |
 
 ## 常见问题
 
@@ -396,7 +399,7 @@ Windows 上驱动会在引擎句柄关闭时自动放行；Linux / macOS 由守�
 <details>
 <summary><b>忘了管理界面的地址或令牌？</b></summary>
 
-引擎启动时会打印完整地址；令牌也保存在配置文件的 `api_token` 字段。
+引擎启动时会打印完整地址；令牌也保存在配置文件的 `options.api_token` 字段。
 
 </details>
 
