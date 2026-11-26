@@ -1,0 +1,70 @@
+name: Release
+
+# Pushing a tag such as v0.3.0 tests the code, builds the archives for every
+# platform and publishes them as a GitHub release. Running the workflow by
+# hand does everything except publishing: the archives are kept as a workflow
+# artifact.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+
+      - name: Check that the tag matches the version in the code
+        if: github.ref_type == 'tag'
+        run: |
+          version=$(sed -n 's/^[[:space:]]*\(var \|const \)\?Version[[:space:]]*=[[:space:]]*"\([^"]*\)".*/\2/p' internal/engine/engine.go | head -n 1)
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::tag $GITHUB_REF_NAME does not match Version \"$version\" in internal/engine/engine.go"
+            exit 1
+          fi
+
+      - name: Format
+        run: test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
+
+      - name: Vet
+        run: |
+          go vet ./...
+          GOOS=windows go vet ./...
+          GOOS=darwin go vet ./...
+
+      - name: Test
+        run: go test -count=1 -timeout 600s ./...
+
+      # The Windows archive has no driver: a kernel driver cannot be built or
+      # signed for distribution here.
+      - name: Build the archives
+        run: go run ./tools/release -no-driver -out dist
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: oddlyproxifier-dist
+          path: dist/
+          if-no-files-found: error
+
+      - name: Publish the release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" dist/* --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" dist/* --title "OddlyProxifier ${GITHUB_REF_NAME#v}" --generate-notes --verify-tag
+          fi

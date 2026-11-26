@@ -419,6 +419,18 @@ go run ./tools/release
 
 压缩包与 `SHA256SUMS` 写入 `dist/`。`-out 目录` 改输出位置，`-only linux/arm64,windows/amd64` 只做其中几个，`-no-driver` 让 Windows 包不带驱动。
 
+### 发布
+
+发布由 GitHub Actions 完成（[.github/workflows/release.yml](.github/workflows/release.yml)）。改好 `internal/engine/engine.go` 里的 `Version` 并提交后，推送同名的标签：
+
+```bash
+git tag v0.3.0
+git push origin v0.3.0
+```
+
+工作流会检查标签与 `Version` 一致，运行 `gofmt`、`go vet` 和测试，打包全部平台（Windows 包不带驱动），然后创建 Release 并上传压缩包与 `SHA256SUMS`。
+在 Actions 页面手动运行它则只测试和打包，压缩包保存为该次运行的产物，不发布。
+
 ### 测试
 
 ```bash

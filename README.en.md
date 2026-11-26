@@ -422,6 +422,18 @@ go run ./tools/release
 
 Archives and `SHA256SUMS` go to `dist/`. `-out dir` changes the place, `-only linux/arm64,windows/amd64` builds just those, and `-no-driver` leaves the driver out of the Windows archive.
 
+### Releasing
+
+Releases are made by GitHub Actions ([.github/workflows/release.yml](.github/workflows/release.yml)). Set `Version` in `internal/engine/engine.go`, commit, and push a tag of the same name:
+
+```bash
+git tag v0.3.0
+git push origin v0.3.0
+```
+
+The workflow checks that the tag matches `Version`, runs `gofmt`, `go vet` and the tests, packs every platform (the Windows archive without the driver), then creates the release and uploads the archives with `SHA256SUMS`.
+Started by hand from the Actions page it only tests and packs: the archives are kept as an artifact of that run and nothing is published.
+
 ### Tests
 
 ```bash
